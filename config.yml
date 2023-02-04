@@ -1,0 +1,15 @@
+lab:
+  network: 10.10.0.0/24
+  nodes:
+    broker:
+      build: custom_broker
+    client0:
+      image: debian:latest
+      script: /bin/bash script0.sh
+      needs:
+        - broker
+    client1:
+      image: debian:latest
+      script: /bin/bash script1.sh
+      needs:
+        - broker
