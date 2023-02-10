@@ -8,6 +8,7 @@ try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
+from colorama import Fore
 
 config:dict = load(open("./config.yml", "r"), Loader=Loader)
 
@@ -21,21 +22,24 @@ def reader(lab:dict):
     network:str = lab["network"]
     broker:dict = {}
     nodes = []
-    j:int = 0
     for i in lab["nodes"]:
         if i == "broker":
-            broker = lab[i]
+            broker = lab["nodes"][i]
+            print(f"{Fore.GREEN}\tBroker añadido{Fore.RESET}")
         else:
-            nodes[j]=lab["nodes"][i]
-            j+=1
+            nodes.append(lab["nodes"][i])
+            print(f"{Fore.GREEN}\tNodo [{i}] añadido{Fore.RESET}")
     return (network, broker, nodes)
 
 
 
 try:
-    network, broker, nodes = reader(config["lab"])
+    (network, broker, nodes) = reader(config["lab"])
     print("Se ha leído config.yml correctamente")
-except KeyError:
-    print('KeyError: No existe el parámetro "lab" en config.yml')
-except Exception:
-    print("Ha ocurrido un error desconocido")
+    # print(f"""    Network: {network}
+    # Broker: {broker}
+    # Nodes: {nodes}""")
+except KeyError as e:
+    print(f'{Fore.RED}KeyError: No existe el parámetro {e} en config.yml{Fore.RESET}')
+except Exception as e:
+    print(f"{Fore.RED}Ha ocurrido un error desconocido: {e}{Fore.RESET}")
