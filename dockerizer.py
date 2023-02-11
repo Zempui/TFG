@@ -12,6 +12,8 @@ except ImportError:
     from yaml import Loader, Dumper
 from colorama import Fore
 
+
+
 ###############################
 #  DEFINICIÓN DE EXCEPCIONES  #
 ###############################
@@ -45,14 +47,16 @@ def reader(lab:dict) -> tuple:
 def buscaParam(param:str, file, content:dict) -> bool:
     """
     Función "buscaParam", que buscará las ocurrencias de un parámetro
-    en un archivo y las almacenará en un diccionario. Devuelve False si
+    en un archivo y las almacenará en un diccionario. Devuelve True si
     no ha habido ninguna ocurrencia.
     """
-    found:bool = False
-    for line in file.readline():
+    notFound:bool = True
+    for line in file:
         if param in line:
-            found=True
-    return found
+            notFound=False
+            content[param]=line[line.find(param)+len(param)+1:].replace("\n","")
+    file.seek(0,0)
+    return notFound
 
 def dockerfileGenerator(network:str, broker:dict, nodes:list) -> None:
     """
@@ -66,12 +70,14 @@ def dockerfileGenerator(network:str, broker:dict, nodes:list) -> None:
         brokerfile = open(f'{broker["build"]}/Dockerfile',"r")
         content:dict = {}
         # Buscamos los parámetros del Dockerfile del broker
-        if (not(buscaParam("FROM", brokerfile, content)) or 
-            not(buscaParam("ADD", brokerfile, content))):
-            raise(dockerfileException(f"Parámetro FROM o ADD no encontrado"))
+        if (buscaParam("FROM", brokerfile, content)):
+            raise(dockerfileException(f"Parámetro FROM no encontrado"))
+        if (buscaParam("ADD",  brokerfile, content)):
+            raise(dockerfileException(f"Parámetro ADD no encontrado"))
         # Corregimos el contenido de content["ADD"] para que tenga en cuenta
         # la carpeta contenedora del archivo.
-        content["ADD"] = f'{broker["build"]}/{content["ADD"][1:]}'
+        content["ADD"] = f'{broker["build"]}/{content["ADD"]}'
+        print("content:",content)
 
     finally:
         dockerfile.close()
@@ -80,17 +86,23 @@ def dockerfileGenerator(network:str, broker:dict, nodes:list) -> None:
 ###############################
 #      SCRIPT PRINCIPAL       #
 ###############################
-file=open("./config.yml", "r")
-config:dict = load(file, Loader=Loader)
-try:
-    (network, broker, nodes) = reader(config["lab"])
-    print("Se ha leído config.yml correctamente")
-    dockerfileGenerator(network, broker, nodes)
-except KeyError as e:
-    print(f'{Fore.RED}KeyError: No existe el parámetro {e} en config.yml{Fore.RESET}')
-except dockerfileException as e:
-    print(f'{Fore.RED}Ha habido un problema en la generacinón del dockerfile: {e}{Fore.RESET}')
-except Exception as e:
-    print(f"{Fore.RED}Ha ocurrido un error desconocido: {e}{Fore.RESET}")
-finally:
-    file.close()
+def dockerize(debug:bool=False) -> None:
+    file=open("./config.yml", "r")
+    config:dict = load(file, Loader=Loader)
+    try:
+        (network, broker, nodes) = reader(config["lab"])
+        print("Se ha leído config.yml correctamente")
+        if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tBroker:\t{broker}\n\tNodes:\t{nodes}{Fore.RESET}")
+        dockerfileGenerator(network, broker, nodes)
+    except KeyError as e:
+        print(f'{Fore.RED}KeyError: No existe el parámetro {e} en config.yml{Fore.RESET}')
+    except dockerfileException as e:
+        print(f'{Fore.RED}Ha habido un problema en la generacinón del dockerfile: {e}{Fore.RESET}')
+    except Exception as e:
+        print(f"{Fore.RED}Ha ocurrido un error desconocido: {e}{Fore.RESET}")
+    finally:
+        file.close()
+
+
+if __name__=="__main__":
+    dockerize()
