@@ -4,12 +4,12 @@ lab:
     broker:
       build: custom_broker
     client0:
-      image: debian:latest
+      image: nicolaka/netshoot
       script: /bin/bash script0.sh
       needs:
         - broker
     client1:
-      image: debian:latest
+      image: nicolaka/netshoot
       script: /bin/bash script1.sh
       needs:
         - broker

@@ -1,0 +1,35 @@
+version: "3.9"
+name: lab
+services:
+  broker:
+    build: custom_broker
+    volumes: 
+      - "./:/workspace"
+    networks: 
+      - lab_network
+  client0:
+    image: nicolaka/netshoot
+    volumes: 
+      - "./:/workspace"
+    entrypoint: /bin/bash /workspace/script0.sh
+    networks: 
+      - lab_network
+    depends_on:
+      - broker
+  client1:
+    image: nicolaka/netshoot
+    volumes: 
+      - "./:/workspace"
+    entrypoint: /bin/bash /workspace/script1.sh
+    networks: 
+      - lab_network
+    depends_on:
+      - broker
+
+networks:
+  lab_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.0.0/24
