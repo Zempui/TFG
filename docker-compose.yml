@@ -1,0 +1,34 @@
+name: lab
+networks:
+  lab_network:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 10.10.0.0/24
+      driver: default
+services:
+  broker:
+    build: custom_broker
+    networks:
+    - lab_network
+    volumes:
+    - ./:/workspace
+  client0:
+    depends_on:
+    - broker
+    entrypoint: /bin/bash script0.sh
+    image: nicolaka/netshoot
+    networks:
+    - lab_network
+    volumes:
+    - ./:/workspace
+  client1:
+    depends_on:
+    - broker
+    entrypoint: /bin/bash script1.sh
+    image: nicolaka/netshoot
+    networks:
+    - lab_network
+    volumes:
+    - ./:/workspace
+version: 1.0.0

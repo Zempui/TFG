@@ -1,3 +1,4 @@
 
-.vscode/settings.json
-__pycache__/dockerizer.cpython-310.pyc
+.vscode/*
+__pycache__/*
+docker-compose(referencia).yml

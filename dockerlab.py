@@ -9,13 +9,34 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 from colorama import Fore
+from typing import TypedDict, Optional
 
 
+###############################
+#  DEFINICIÓN DE TYPED DICTS  #
+###############################
+class Compose (TypedDict):
+    version:str
+    name:str
+    services:dict
+    networks:dict
+
+class Service (TypedDict):
+    build:Optional[str]
+    image:Optional[str]
+    entrypoint:Optional[str]
+    depends_on:Optional[list]
+    volumes:list
+    networks:list
 
 ###############################
 #  DEFINICIÓN DE EXCEPCIONES  #
 ###############################
-class dockerComposeException(Exception):
+class ReaderException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+class ParseNodeException(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
         
@@ -23,104 +44,126 @@ class dockerComposeException(Exception):
 ###############################
 #   DEFINICIÓN DE FUNCIONES   #
 ###############################
-def reader(lab:dict) -> tuple:
+def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
     """
     Función "reader" que tomará como parámetro un diccionario que contenga
-    la definición del laboratorio de "config.yml" y devolverá una tupla con
-    la red a la que hace referencia, la definición del broker y una tabla
-    con la información de cada cliente.
+    la definición del laboratorio de "config.yml" y el diccionario mediante 
+    el cual se generará el docker-compose. Comprobará que sólo hay
+    una clave definida en dicho diccionario y dividirá su contenido en dos
+    diccionarios, "network" y "nodes". Guardará el nombre de la clave en el
+    diccionario "compose".
     """
-    network:str = lab["network"]
-    nodes:list = []
-    for i in lab["nodes"]:
-        nodes.append(lab["nodes"][i])
-        print(f"{Fore.GREEN}\tNodo [{i}] añadido{Fore.RESET}")
-    return (network, nodes)
+    network:str = "10.0.0.0/8"
+    nodes:dict = {}
 
-def buscaParam(param:str, file, content:dict) -> bool:
-    """
-    Función "buscaParam", que buscará las ocurrencias de un parámetro
-    en un archivo y las almacenará en un diccionario. Devuelve True si
-    no ha habido ninguna ocurrencia.
-    """
-    notFound:bool = True
-    for line in file:
-        if param in line:
-            notFound=False
-            content[param]=line[line.find(param)+len(param)+1:].replace("\n","")
-    file.seek(0,0)
-    return notFound
+    #Comprobamos que sólo hay una clave en "config"
+    if(len(config) != 1):
+        raise(ReaderException(f"'config' contiene {len(config)} elementos. Sólo se admite 1."))
+    else:
+        if conf["debug"]: print(f"{Fore.BLUE}Contenido del laboratorio: {config[list(config)[0]]}{Fore.RESET}")
+        # Comprobamos el contenido de "config", de momento, sólo se admiten las cláusulas
+        # "network" y "nodes"
+        lab = config[list(config)[0]]
+        if len(lab) > 2:
+            raise(ReaderException(f"Se han definido más parámetros de los admitidos: {list(lab)}"))
+        else:
+            compose["name"]=list(config)[0]
+            try:
+                network = lab["network"]
+                print(f"{Fore.GREEN}\tRed [{network}] añadida{Fore.RESET}")
+            except KeyError:
+                if "debug" in conf and conf["debug"]: 
+                    print(f"{Fore.BLUE}'network' no está definido. Proporcionando el valor por defecto.")
+            try:
+                nodes = lab["nodes"]
+                for node in nodes:
+                    print(f"{Fore.GREEN}\tNodo [{node}] añadido{Fore.RESET}")
+            except KeyError:
+                if "debug" in conf and conf["debug"]: 
+                    print(f"{Fore.BLUE}'nodes' no está definido. Proporcionando el valor por defecto.")
+    return(network, nodes)
 
-def dockerComposeGenerator(network:str, nodes:list) -> None:
+
+def generateNetwork(network:str, compose:Compose, *args, **conf) -> None:
     """
-    Función "dockerComposeGenerator", que tomará como parámetros la 
-    red a emplear y una lista de nodos. Generará el
-    docker-compose necesario para el despliegue del laboratorio virtual.
-    En caso de error, lanzará una Excepción de tipo "dockerfileException"
+    Función "generateNetwork", que plasma los contenidos de "network"
+    en el diccionario "compose".
     """
-    try:
-        compose = open("docker-compose.yml", "w")
-        # TODO: Hay que diferenciar entre archivos con "build" e "image"
-        content:dict = {}
-        # Diferenciamos entre archivos con "build" e "image"
-        for node in nodes:
-            c1=False
-            c2=False
-            if not buscaParam("build", node, content[node]):
-                #Caso 1: es un archivo con "build", su dockerfile estará en una carpeta
-                c1=True
-                try:
-                    dockerfile = open(f"{content[node]['build']}/Dockerfile")
-                    if (buscaParam("FROM", dockerfile, content[node])):
-                        raise(dockerComposeException(f"{node}: Parámetro FROM no encontrado"))
-                    if (buscaParam("ADD",  dockerfile, content[node])):
-                        raise(dockerComposeException(f"{node}: Parámetro ADD no encontrado"))
-                    # Corregimos el contenido de content["ADD"] para que tenga en cuenta
-                    # la carpeta contenedora del archivo.
-                    content["ADD"] = f'{content[node]["build"]}/{content["ADD"]}'
-                finally:
-                    dockerfile.close()
+    compose["networks"]={f"{compose['name']}_network":
+                                {"driver":"bridge",
+                                "ipam":{"driver":"default",
+                                        "config":[{"subnet":network}]}}}
+    if "debug" in conf and conf["debug"]:
+        print(f"{Fore.BLUE}\tnetworks: {compose['networks']}{Fore.RESET}")
+
+
+
+def parseNode(nodes:dict, compose:Compose, *args, **conf) -> None:
+    """
+    Función "parseNode" que, para cada nodo, 
+    parseará su contenido en el diccionario "compose"
+    """
+    compose["services"]={}
+    for node in nodes:
+        case1, case2 = False, False
+        if "build" in nodes[node]: case1=True
+        if "image" in nodes[node]: case2=True
+
+        if(case1 and case2):
+            raise ParseNodeException(f"El nodo {node} contiene cláusulas 'build':{nodes[node]['build']} e 'image':{nodes[node]['image']}")
+        elif not(case1 or case2):
+            raise ParseNodeException("El nodo no contiene cláusulas 'build' ni 'image'")
+        else:
+            service:Service = {}
+            if case1:   #Caso 1: contiene "build"
+                service["build"] = nodes[node]["build"]
+            elif case2: #Caso 2: contiene "image"
+                service["image"] = nodes[node]["image"]
+
+            if "needs" in nodes[node]:  service["depends_on"] = nodes[node]["needs"]
+            if "script" in nodes[node]: service["entrypoint"] = nodes[node]["script"]
+            service ["volumes"]  = ["./:/workspace"]
+            service ["networks"] = [list(compose["networks"])[0]]
+            if "debug" in conf and conf["debug"]: 
+                print(f"{Fore.BLUE}\tservice '{node}':\n\t\t{service}{Fore.RESET}")
+            compose["services"][node]=service
 
                 
-            if not buscaParam("image", node, content[node]):
-                #Caso 2: es un archivo con "image"
-                c2=True
-                
-            
-            if(c1 and c2):
-                del(content[node])
-                raise(dockerComposeException(f"El nodo {node} contiene tanto 'build' como 'image'"))
-            elif (not(c1 or c2)):
-                raise(dockerComposeException(f"El nodo {node} no contiene ni 'build' ni 'image'"))
 
 
-        
-        
-        print("content:",content)
-
-    finally:
-        compose.close()
 
 ###############################
 #      SCRIPT PRINCIPAL       #
 ###############################
-def dockerize(debug:bool=False) -> None:
-    file=open("./config.yml", "r")
-    config:dict = load(file, Loader=Loader)
+def dockerlab(debug:bool=False) -> None:
+    file = open("./config.yml", "r")
+    compose_file = open("./docker-compose.yml", "w")
+    config:dict = load (file, Loader=Loader)
+    compose:Compose = {}
+    compose["version"]="1.0.0"
     try:
-        (network, nodes) = reader(config["lab"])
+        (network, nodes) = reader(config, compose, debug=debug)
         print("Se ha leído config.yml correctamente")
-        if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tBroker:\t{broker}\n\tNodes:\t{nodes}{Fore.RESET}")
-        dockerComposeGenerator(network, nodes)
+        if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tNodes:\t{nodes}{Fore.RESET}")
+        generateNetwork(network, compose, debug=debug)
+        print("Red implementada correctamente.")
+        parseNode(nodes, compose, debug=debug)
+
+        dump(compose, compose_file)
+
+
     except KeyError as e:
         print(f'{Fore.RED}KeyError: No existe el parámetro {e} en config.yml{Fore.RESET}')
-    except dockerComposeException as e:
-        print(f'{Fore.RED}Ha habido un problema en la generacinón del docker-compose: {e}{Fore.RESET}')
+    except ReaderException as e:
+        print(f"{Fore.RED}Ha habido un problema en la lectura: \n\t{e}{Fore.RESET}")
+    except ParseNodeException as e:
+        print(f'{Fore.RED}Ha habido un problema en el parseo de elementos: \n\t{e}{Fore.RESET}')
     except Exception as e:
-        print(f"{Fore.RED}Ha ocurrido un error desconocido: {e}{Fore.RESET}")
+        print(f"{Fore.RED}Ha ocurrido un error desconocido: \n\t{e}{Fore.RESET}")
     finally:
         file.close()
+        compose_file.close()
 
 
 if __name__=="__main__":
-    dockerize()
+    dockerlab(debug=True)
