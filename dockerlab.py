@@ -133,7 +133,6 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
                 #¿Todas las réplicas tienen la misma IP?
             
             if "ip" in nodes[node]:
-                print(f"ips recogidas: {ip_list}")
                 ip = ip_address(nodes[node]["ip"])
                 if replicado:
                     raise Parse_node_exception(f"No se puede replicar un nodo al que se le ha asignado IP: {node}")
@@ -143,7 +142,6 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
                     raise Parse_node_exception(f"La ip {ip} no está contenida en el rango {network}")
                 else:
                     ip_list.add(ip)
-                    print(f"ips recogidas: {ip_list}")
                     service["networks"] = {list(compose["networks"])[0]:
                                                 {"ipv4_address":f"{ip}"}}
             else:
