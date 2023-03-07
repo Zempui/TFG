@@ -32,11 +32,11 @@ class Service (TypedDict):
 ###############################
 #  DEFINICIÓN DE EXCEPCIONES  #
 ###############################
-class ReaderException(Exception):
+class Reader_exception(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
-class ParseNodeException(Exception):
+class Parse_node_exception(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
         
@@ -58,14 +58,14 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
 
     #Comprobamos que sólo hay una clave en "config"
     if(len(config) != 1):
-        raise(ReaderException(f"'config' contiene {len(config)} elementos. Sólo se admite 1."))
+        raise(Reader_exception(f"'config' contiene {len(config)} elementos. Sólo se admite 1."))
     else:
         if conf["debug"]: print(f"{Fore.BLUE}Contenido del laboratorio: {config[list(config)[0]]}{Fore.RESET}")
         # Comprobamos el contenido de "config", de momento, sólo se admiten las cláusulas
         # "network" y "nodes"
         lab = config[list(config)[0]]
         if len(lab) > 2:
-            raise(ReaderException(f"Se han definido más parámetros de los admitidos: {list(lab)}"))
+            raise(Reader_exception(f"Se han definido más parámetros de los admitidos: {list(lab)}"))
         else:
             compose["name"]=list(config)[0]
             try:
@@ -84,9 +84,9 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
     return(network, nodes)
 
 
-def generateNetwork(network:str, compose:Compose, *args, **conf) -> None:
+def generate_network(network:str, compose:Compose, *args, **conf) -> None:
     """
-    Función "generateNetwork", que plasma los contenidos de "network"
+    Función "generate_network", que plasma los contenidos de "network"
     en el diccionario "compose".
     """
     compose["networks"]={f"{compose['name']}_network":
@@ -98,9 +98,9 @@ def generateNetwork(network:str, compose:Compose, *args, **conf) -> None:
 
 
 
-def parseNode(nodes:dict, compose:Compose, *args, **conf) -> None:
+def parse_node(nodes:dict, compose:Compose, *args, **conf) -> None:
     """
-    Función "parseNode" que, para cada nodo, 
+    Función "parse_node" que, para cada nodo, 
     parseará su contenido en el diccionario "compose"
     """
     compose["services"]={}
@@ -110,9 +110,9 @@ def parseNode(nodes:dict, compose:Compose, *args, **conf) -> None:
         if "image" in nodes[node]: case2=True
 
         if(case1 and case2):
-            raise ParseNodeException(f"El nodo {node} contiene cláusulas 'build':{nodes[node]['build']} e 'image':{nodes[node]['image']}")
+            raise Parse_node_exception(f"El nodo {node} contiene cláusulas 'build':{nodes[node]['build']} e 'image':{nodes[node]['image']}")
         elif not(case1 or case2):
-            raise ParseNodeException("El nodo no contiene cláusulas 'build' ni 'image'")
+            raise Parse_node_exception("El nodo no contiene cláusulas 'build' ni 'image'")
         else:
             service:Service = {}
             if case1:   #Caso 1: contiene "build"
@@ -145,18 +145,18 @@ def dockerlab(debug:bool=False) -> None:
         (network, nodes) = reader(config, compose, debug=debug)
         print("Se ha leído config.yml correctamente")
         if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tNodes:\t{nodes}{Fore.RESET}")
-        generateNetwork(network, compose, debug=debug)
+        generate_network(network, compose, debug=debug)
         print("Red implementada correctamente.")
-        parseNode(nodes, compose, debug=debug)
+        parse_node(nodes, compose, debug=debug)
 
         dump(compose, compose_file)
 
 
     except KeyError as e:
         print(f'{Fore.RED}KeyError: No existe el parámetro {e} en config.yml{Fore.RESET}')
-    except ReaderException as e:
+    except Reader_exception as e:
         print(f"{Fore.RED}Ha habido un problema en la lectura: \n\t{e}{Fore.RESET}")
-    except ParseNodeException as e:
+    except Parse_node_exception as e:
         print(f'{Fore.RED}Ha habido un problema en el parseo de elementos: \n\t{e}{Fore.RESET}')
     except Exception as e:
         print(f"{Fore.RED}Ha ocurrido un error desconocido: \n\t{e}{Fore.RESET}")
