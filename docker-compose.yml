@@ -19,7 +19,8 @@ services:
     entrypoint: /bin/bash script0.sh
     image: nicolaka/netshoot
     networks:
-    - lab_network
+      lab_network:
+        ipv4_address: 10.10.0.1
     volumes:
     - ./:/workspace
   client1:
@@ -28,7 +29,8 @@ services:
     entrypoint: /bin/bash script1.sh
     image: nicolaka/netshoot
     networks:
-    - lab_network
+      lab_network:
+        ipv4_address: 10.10.0.2
     volumes:
     - ./:/workspace
 version: 1.0.0

@@ -6,10 +6,12 @@ lab:
     client0:
       image: nicolaka/netshoot
       script: /bin/bash script0.sh
+      ip: 10.10.0.1
       needs:
         - broker
     client1:
       image: nicolaka/netshoot
       script: /bin/bash script1.sh
+      ip: 10.10.0.2
       needs:
         - broker

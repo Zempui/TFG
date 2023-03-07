@@ -10,6 +10,7 @@ except ImportError:
     from yaml import Loader, Dumper
 from colorama import Fore
 from typing import TypedDict, Optional
+from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network
 
 
 ###############################
@@ -53,7 +54,7 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
     diccionarios, "network" y "nodes". Guardará el nombre de la clave en el
     diccionario "compose".
     """
-    network:str = "10.0.0.0/8"
+    network:IPv4Network = ip_network("10.0.0.0/8")
     nodes:dict = {}
 
     #Comprobamos que sólo hay una clave en "config"
@@ -69,7 +70,7 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
         else:
             compose["name"]=list(config)[0]
             try:
-                network = lab["network"]
+                network = ip_network(lab["network"])
                 print(f"{Fore.GREEN}\tRed [{network}] añadida{Fore.RESET}")
             except KeyError:
                 if "debug" in conf and conf["debug"]: 
@@ -84,7 +85,7 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
     return(network, nodes)
 
 
-def generate_network(network:str, compose:Compose, *args, **conf) -> None:
+def generate_network(network:IPv4Network, compose:Compose, *args, **conf) -> None:
     """
     Función "generate_network", que plasma los contenidos de "network"
     en el diccionario "compose".
@@ -92,13 +93,13 @@ def generate_network(network:str, compose:Compose, *args, **conf) -> None:
     compose["networks"]={f"{compose['name']}_network":
                                 {"driver":"bridge",
                                 "ipam":{"driver":"default",
-                                        "config":[{"subnet":network}]}}}
+                                        "config":[{"subnet":f"{network}"}]}}}
     if "debug" in conf and conf["debug"]:
         print(f"{Fore.BLUE}\tnetworks: {compose['networks']}{Fore.RESET}")
 
 
 
-def parse_node(nodes:dict, compose:Compose, *args, **conf) -> None:
+def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) -> None:
     """
     Función "parse_node" que, para cada nodo, 
     parseará su contenido en el diccionario "compose"
@@ -106,6 +107,7 @@ def parse_node(nodes:dict, compose:Compose, *args, **conf) -> None:
     compose["services"]={}
     for node in nodes:
         case1, case2 = False, False
+        ip_list = set()
         if "build" in nodes[node]: case1=True
         if "image" in nodes[node]: case2=True
 
@@ -123,7 +125,20 @@ def parse_node(nodes:dict, compose:Compose, *args, **conf) -> None:
             if "needs" in nodes[node]:  service["depends_on"] = nodes[node]["needs"]
             if "script" in nodes[node]: service["entrypoint"] = nodes[node]["script"]
             service ["volumes"]  = ["./:/workspace"]
-            service ["networks"] = [list(compose["networks"])[0]]
+            
+
+            if "ip" in nodes[node]:
+                ip = IPv4Address(nodes[node]["ip"])
+                if ip in ip_list:
+                    raise Parse_node_exception(f"La ip {ip} está repetida")
+                elif not(ip in network):
+                    raise Parse_node_exception(f"La ip {ip} no está contenida en el rango {network}")
+                else:
+                    ip_list.add(ip)
+                    service["networks"] = {list(compose["networks"])[0]:
+                                                {"ipv4_address":f"{ip}"}}
+            else:
+                service ["networks"] = [list(compose["networks"])[0]]
             if "debug" in conf and conf["debug"]: 
                 print(f"{Fore.BLUE}\tservice '{node}':\n\t\t{service}{Fore.RESET}")
             compose["services"][node]=service
@@ -147,7 +162,7 @@ def dockerlab(debug:bool=False) -> None:
         if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tNodes:\t{nodes}{Fore.RESET}")
         generate_network(network, compose, debug=debug)
         print("Red implementada correctamente.")
-        parse_node(nodes, compose, debug=debug)
+        parse_node(nodes, compose, network, debug=debug)
 
         dump(compose, compose_file)
 
