@@ -105,9 +105,10 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
     parseará su contenido en el diccionario "compose"
     """
     compose["services"]={}
+    ip_list = set()
     for node in nodes:
         case1, case2 = False, False
-        ip_list = set()
+        
         if "build" in nodes[node]: case1=True
         if "image" in nodes[node]: case2=True
 
@@ -128,13 +129,15 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
             
 
             if "ip" in nodes[node]:
-                ip = IPv4Address(nodes[node]["ip"])
+                print(f"ips recogidas: {ip_list}")
+                ip = ip_address(nodes[node]["ip"])
                 if ip in ip_list:
                     raise Parse_node_exception(f"La ip {ip} está repetida")
                 elif not(ip in network):
                     raise Parse_node_exception(f"La ip {ip} no está contenida en el rango {network}")
                 else:
                     ip_list.add(ip)
+                    print(f"ips recogidas: {ip_list}")
                     service["networks"] = {list(compose["networks"])[0]:
                                                 {"ipv4_address":f"{ip}"}}
             else:
