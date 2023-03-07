@@ -9,6 +9,9 @@ networks:
 services:
   broker:
     build: custom_broker
+    deploy:
+      mode: replicated
+      replicas: 2
     networks:
     - lab_network
     volumes:
@@ -26,6 +29,9 @@ services:
   client1:
     depends_on:
     - broker
+    deploy:
+      mode: replicated
+      replicas: 1
     entrypoint: /bin/bash script1.sh
     image: nicolaka/netshoot
     networks:

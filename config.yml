@@ -3,6 +3,7 @@ lab:
   nodes:
     broker:
       build: custom_broker
+      replicas: 2
     client0:
       image: nicolaka/netshoot
       script: /bin/bash script0.sh
@@ -13,5 +14,6 @@ lab:
       image: nicolaka/netshoot
       script: /bin/bash script1.sh
       ip: 10.10.0.2
+      replicas: 1
       needs:
         - broker

@@ -27,6 +27,7 @@ class Service (TypedDict):
     image:Optional[str]
     entrypoint:Optional[str]
     depends_on:Optional[list]
+    deploy:Optional[dict]
     volumes:list
     networks:list
 
@@ -107,7 +108,7 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
     compose["services"]={}
     ip_list = set()
     for node in nodes:
-        case1, case2 = False, False
+        case1, case2, replicado = False, False, False
         
         if "build" in nodes[node]: case1=True
         if "image" in nodes[node]: case2=True
@@ -123,15 +124,20 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
             elif case2: #Caso 2: contiene "image"
                 service["image"] = nodes[node]["image"]
 
-            if "needs" in nodes[node]:  service["depends_on"] = nodes[node]["needs"]
-            if "script" in nodes[node]: service["entrypoint"] = nodes[node]["script"]
             service ["volumes"]  = ["./:/workspace"]
+            if "needs" in nodes[node]:      service["depends_on"]   = nodes[node]["needs"]
+            if "script" in nodes[node]:     service["entrypoint"]   = nodes[node]["script"]
+            if "replicas" in nodes[node]:
+                if nodes[node]["replicas"] > 1: replicado = True
+                service["deploy"] = {"mode":"replicated", "replicas":nodes[node]["replicas"]}
+                #¿Todas las réplicas tienen la misma IP?
             
-
             if "ip" in nodes[node]:
                 print(f"ips recogidas: {ip_list}")
                 ip = ip_address(nodes[node]["ip"])
-                if ip in ip_list:
+                if replicado:
+                    raise Parse_node_exception(f"No se puede replicar un nodo al que se le ha asignado IP: {node}")
+                elif ip in ip_list:
                     raise Parse_node_exception(f"La ip {ip} está repetida")
                 elif not(ip in network):
                     raise Parse_node_exception(f"La ip {ip} no está contenida en el rango {network}")
@@ -142,6 +148,10 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
                                                 {"ipv4_address":f"{ip}"}}
             else:
                 service ["networks"] = [list(compose["networks"])[0]]
+            
+
+            
+
             if "debug" in conf and conf["debug"]: 
                 print(f"{Fore.BLUE}\tservice '{node}':\n\t\t{service}{Fore.RESET}")
             compose["services"][node]=service
