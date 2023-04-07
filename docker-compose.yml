@@ -9,14 +9,32 @@ networks:
 services:
   broker:
     build: custom_broker
-    deploy:
-      mode: replicated
-      replicas: 2
     networks:
-    - lab_network
+      lab_network:
+        ipv4_address: 10.10.0.0
     volumes:
     - ./:/workspace
-  client0:
+  client211_0:
+    depends_on:
+    - broker
+    entrypoint: /bin/bash script0.sh
+    image: nicolaka/netshoot
+    networks:
+      lab_network:
+        ipv4_address: 10.10.0.16
+    volumes:
+    - ./:/workspace
+  client211_1:
+    depends_on:
+    - broker
+    entrypoint: /bin/bash script0.sh
+    image: nicolaka/netshoot
+    networks:
+      lab_network:
+        ipv4_address: 10.10.0.17
+    volumes:
+    - ./:/workspace
+  client22_0:
     depends_on:
     - broker
     entrypoint: /bin/bash script0.sh
@@ -26,17 +44,44 @@ services:
         ipv4_address: 10.10.0.1
     volumes:
     - ./:/workspace
-  client1:
+  client22_1:
     depends_on:
     - broker
-    deploy:
-      mode: replicated
-      replicas: 1
-    entrypoint: /bin/bash script1.sh
+    entrypoint: /bin/bash script0.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
         ipv4_address: 10.10.0.2
+    volumes:
+    - ./:/workspace
+  client312:
+    depends_on:
+    - broker
+    entrypoint: /bin/bash script1.sh
+    image: nicolaka/netshoot
+    networks:
+      lab_network:
+        ipv4_address: 10.10.0.8
+    volumes:
+    - ./:/workspace
+  client312_bis:
+    depends_on:
+    - broker
+    entrypoint: /bin/bash script1.sh
+    image: nicolaka/netshoot
+    networks:
+      lab_network:
+        ipv4_address: 10.10.0.3
+    volumes:
+    - ./:/workspace
+  client4:
+    depends_on:
+    - broker
+    entrypoint: /bin/bash script1.sh
+    image: nicolaka/netshoot
+    networks:
+      lab_network:
+        ipv4_address: 10.10.0.4
     volumes:
     - ./:/workspace
 version: 1.0.0
