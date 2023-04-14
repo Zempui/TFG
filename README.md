@@ -1,6 +1,6 @@
 # Herramienta para despliegue de laboratorios virtuales mediante Docker
 El presente repositorio muestra una herramienta para automatizar el despliegue de laboratorios virtuales mediante Docker.
-Se trata de un Trabajo de Fin de Grado (TFG) desarrollado en el curso 2022/23 para el Grado en Ingeniera de las Tecnologas de Telecomunicación de la Universidad de Sevilla.
+Se trata de un Trabajo de Fin de Grado (TFG) desarrollado en el curso 2022/23 para el Grado en Ingeniera de las Tecnologías de Telecomunicación de la Universidad de Sevilla.
 ## Funcionamiento
 Una vez descargado el repositorio, se introducirá en la carpeta contenedora del archivo "dockerlab.py" un script llamado "config.yml" en formato YAML, el cual contendrá las especificaciones del laboratorio virtual a desplegar. Actualmente, el archivo debe tener la siguiente estructura:
 - `<lab_name>`: nombre del laboratorio (en el ejemplo, `lab`).
