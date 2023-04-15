@@ -20,6 +20,7 @@ Para la ejecución del presente software se deben cumplir los siguientes requisi
 - Docker-compose 1.29.2 o posteriores[^1]
 - Python 3.10.6 o posteriores[^1]
 - Librerías contenidas en el archivo `requirements.txt`.
+
 Para la instalación de Docker, Docker-compose y Python se muestra a continuación el proceso a seguir en un equipo con una distribución de Linux basada en Debian (se han de realizar las siguientes acciones con permisos de superusuario):
 1. Se actualiza la lista de repositorios y los paquetes actualmente instalados:
 ```bash
