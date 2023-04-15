@@ -257,6 +257,7 @@ def dockerlab(debug:bool=False) -> None:
         parse_node(nodes, compose, network, debug=debug)
 
         dump(compose, compose_file)
+        print("'docker-compose.yml' generado correctamente.\nSe procede a la ejecución del docker-compose")
 
 
     except KeyError as e:

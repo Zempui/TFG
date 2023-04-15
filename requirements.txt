@@ -1,0 +1,6 @@
+colorama
+typing
+ipaddress
+docker-py
+docker
+pyyaml
