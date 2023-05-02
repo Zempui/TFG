@@ -6,32 +6,32 @@ lab:
       replicas: 1
     client211:
       image: nicolaka/netshoot
-      script: /bin/bash script0.sh
+      script: script0.sh
       network: 10.10.0.16/28
       replicas: 2
       needs:
         - broker
     client22:
       image: nicolaka/netshoot
-      script: /bin/bash script0.sh
+      script: script0.sh
       replicas: 2
       needs:
         - broker
     client312:
       image: nicolaka/netshoot
-      script: /bin/bash script1.sh
+      script: script1.sh
       ip: 10.10.0.8
       replicas: 1
       needs:
         - broker
     client312_bis:
       image: nicolaka/netshoot
-      script: /bin/bash script1.sh
-      ip: 10.10.0.3
+      script: script1.sh
+      ip: 10.10.0.5
       needs:
         - broker
     client4:
       image: nicolaka/netshoot
-      script: /bin/bash script1.sh
+      script: script1.sh
       needs:
         - broker

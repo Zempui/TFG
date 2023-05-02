@@ -9,12 +9,21 @@ Una vez descargado el repositorio, se introducirá en la carpeta contenedora del
     - `<node_name>`: nombre del nodo en cuestión.
       - `image`: imagen en la que se va a basar el nodo. Es excluyente con la funcionalidad `build`.
       - `build`: en caso de querer basar un nodo en un contenedor definido por el usuario, se incluirá una carpeta en el directorio actual que contenga los archivos necesarios para su despliegue y se indicará en esta directiva su nombre. Es excluyente con la funcionalidad `image`.
-      - `script`: en caso de querer que se introduzca un script en el contenedor a desplegar, se debe indicar aquí su nombre tal y como esté almacenado en el directorio actual.
+      - `script`: en caso de querer que se ejecute un shell-script en el contenedor a desplegar cuando este se inicie, se debe indicar aquí su nombre tal y como esté almacenado en el directorio actual.
       - `network`: si deseamos que se le asigne una dirección IP en un subrango de la red del laboratorio, se indicará en esta directiva. Es excluyente con la funcionalidad `ip`.
       - `ip`: si deseamos que al nodo actual se le despliegue con una dirección IP concreta dentro del rango de la red del laboratorio, se indicará en esta directiva. Es excluyente con las funcionalidades `network` y `replicas`.
       - `replicas`: en caso de desear desplegar varios contenedores con configuraciones similares, se indicará en esta directiva el número de instancias a desplegar. Es incompatible con la funcionalidad `ip` sólo en caso de que su valor sea superior a "1".
       - `needs`: lista de dependencias para el despliegue del contenedor. Sirve para generar un orden de despliegue personalizado.
-## Dependencias
+## Ejecución
+Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de banderas en sus argumentos (en implementación):
+- [x] `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yaml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
+- [x] `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yaml`.
+- [ ] `-m` o `--monitor`: Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con `-e`.
+- [ ] `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación.
+
+Por defecto, en caso de no proporcionar parámetros, se ejecutará con las banderas `-be`.
+Una vez el archivo `docker-compose.yml` haya sido creado, se proporcionará la opción de correr la simulación pulsando la tecla `r` y de pararla pulsando la tecla `s`. Para salir de la aplicación, se debe pulsar la tecla `esc`.
+## Dependencias 
 Para la ejecución del presente software se deben cumplir los siguientes requisitos:
 - Docker 23.0.3 o posteriores[^1]
 - Docker-compose 1.29.2 o posteriores[^1]

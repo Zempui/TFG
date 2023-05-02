@@ -11,13 +11,13 @@ services:
     build: custom_broker
     networks:
       lab_network:
-        ipv4_address: 10.10.0.0
+        ipv4_address: 10.10.0.2
     volumes:
     - ./:/workspace
   client211_0:
     depends_on:
     - broker
-    entrypoint: /bin/bash script0.sh
+    entrypoint: /bin/bash /workspace/script0.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
@@ -27,7 +27,7 @@ services:
   client211_1:
     depends_on:
     - broker
-    entrypoint: /bin/bash script0.sh
+    entrypoint: /bin/bash /workspace/script0.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
@@ -37,27 +37,27 @@ services:
   client22_0:
     depends_on:
     - broker
-    entrypoint: /bin/bash script0.sh
+    entrypoint: /bin/bash /workspace/script0.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
-        ipv4_address: 10.10.0.1
+        ipv4_address: 10.10.0.3
     volumes:
     - ./:/workspace
   client22_1:
     depends_on:
     - broker
-    entrypoint: /bin/bash script0.sh
+    entrypoint: /bin/bash /workspace/script0.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
-        ipv4_address: 10.10.0.2
+        ipv4_address: 10.10.0.4
     volumes:
     - ./:/workspace
   client312:
     depends_on:
     - broker
-    entrypoint: /bin/bash script1.sh
+    entrypoint: /bin/bash /workspace/script1.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
@@ -67,21 +67,21 @@ services:
   client312_bis:
     depends_on:
     - broker
-    entrypoint: /bin/bash script1.sh
+    entrypoint: /bin/bash /workspace/script1.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
-        ipv4_address: 10.10.0.3
+        ipv4_address: 10.10.0.5
     volumes:
     - ./:/workspace
   client4:
     depends_on:
     - broker
-    entrypoint: /bin/bash script1.sh
+    entrypoint: /bin/bash /workspace/script1.sh
     image: nicolaka/netshoot
     networks:
       lab_network:
-        ipv4_address: 10.10.0.4
+        ipv4_address: 10.10.0.6
     volumes:
     - ./:/workspace
 version: 1.0.0

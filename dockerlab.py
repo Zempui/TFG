@@ -1,6 +1,7 @@
 """
-Script que se encargará de generar un docker-compose partiendo
-de un archivo "config.yml".
+El presente repositorio muestra una herramienta para automatizar el despliegue de laboratorios virtuales mediante Docker. 
+Se trata de un Trabajo de Fin de Grado (TFG) desarrollado en el curso 2022/23 para el Grado en Ingeniería de las Tecnologías de 
+Telecomunicación de la Universidad de Sevilla.
 """
 
 from yaml import load, dump
@@ -8,15 +9,28 @@ try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
-from colorama import Fore
+from colorama import Fore, Back
 from typing import TypedDict, Optional
 from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network
 import copy
+import argparse
+import subprocess
+import shlex
+from pynput import keyboard
+from threading import Thread
+import signal
+import os
 
 
 ###############################
 #  DEFINICIÓN DE TYPED DICTS  #
 ###############################
+class Arguments(TypedDict):
+    build:bool
+    execute:bool
+    monitor:bool
+    usage:bool
+
 class Compose (TypedDict):
     version:str
     name:str
@@ -51,6 +65,7 @@ class IpAddrException(Exception):
 ###############################
 #   DEFINICIÓN DE FUNCIONES   #
 ###############################
+
 def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
     """
     Función "reader" que tomará como parámetro un diccionario que contenga
@@ -114,7 +129,9 @@ def new_ip_addr(network:IPv4Network, ip_list:set[IPv4Address], n:int) -> list[IP
     result:list[IPv4Address] = []
     if n>=1:
         for addr in network:
-            if not (addr in ip_list):
+            if (not (addr in ip_list)               # Si la IP no está en la lista
+                    and addr.packed[3:]!=b'\x00'    # Si la IP no acaba en '.0'
+                    and addr.packed[3:]!=b'\x01'):  # Si la IP no acaba en '.1' (??)
                 result.append(addr)
                 n -= 1
             if n<1: break
@@ -122,8 +139,6 @@ def new_ip_addr(network:IPv4Network, ip_list:set[IPv4Address], n:int) -> list[IP
             raise(IpAddrException(f"no hay suficientes direcciones IP disponibles en la subred {network}"))
     return result
     
-
-
 
 def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) -> None:
     """
@@ -154,7 +169,7 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
 
             service ["volumes"]  = ["./:/workspace"]
             if "needs" in nodes[node]:      service["depends_on"]   = nodes[node]["needs"]
-            if "script" in nodes[node]:     service["entrypoint"]   = nodes[node]["script"]
+            if "script" in nodes[node]:     service["entrypoint"]   = f'/bin/bash /workspace/{nodes[node]["script"]}'
 
             
             #########################################################################################################
@@ -183,7 +198,7 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
                 #service["deploy"] = {"mode":"replicated", "replicas":nodes[node]["replicas"]}
             else:
                 replicas = 1
-            print(f"{Fore.BLUE}\nEl nodo {node} tiene {replicas} réplica(s){Fore.RESET}")
+            if "debug" in conf and conf["debug"]:print(f"{Fore.BLUE}\nEl nodo {node} tiene {replicas} réplica(s){Fore.RESET}")
             if replicas > 1:
                 if "ip" in nodes[node]: # [1.]
                     raise ParseNodeException(f"No se puede replicar un nodo al que se le ha asignado IP: {node}")
@@ -236,42 +251,115 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
                         print(f"{Fore.BLUE}\tservice '{node}_{i}':\n\t\t{service_replica[i]}{Fore.RESET}")
 
                 
+def read_output(proc) -> None:
+    """
+    Función 'read_output', que imprime por pantalla la salida estándar 
+    de un subproceso y su código de retorno al finalizar.
+    """
+    for line in proc.stdout:
+        print(line, end='')
+    # espera a que el subproceso termine y obtiene su código de retorno
+    return_code = proc.wait()
+    # imprime el código de retorno del subproceso
+    print(f"Código de retorno: {return_code}")
 
 
+def stop_compose() -> None:
+    with subprocess.Popen(shlex.split("docker compose stop"),
+                                        stdout=subprocess.PIPE,
+                                        universal_newlines=True) as p:
+        t = Thread(target=read_output, args=(p,))
+        t.start()
 
 ###############################
 #      SCRIPT PRINCIPAL       #
 ###############################
-def dockerlab(debug:bool=False) -> None:
-    file = open("./config.yml", "r")
-    compose_file = open("./docker-compose.yml", "w")
-    config:dict = load (file, Loader=Loader)
-    compose:Compose = {}
-    compose["version"]="1.0.0"
-    try:
-        (network, nodes) = reader(config, compose, debug=debug)
-        print("Se ha leído config.yml correctamente")
-        if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tNodes:\t{nodes}{Fore.RESET}")
-        generate_network(network, compose, debug=debug)
-        print("Red implementada correctamente.")
-        parse_node(nodes, compose, network, debug=debug)
+def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "monitor":False, "execute":False}) -> None:
+    #Caso por defecto
+    if not(flags["build"]) and not(flags["execute"]) and not(flags["monitor"]) and not(flags["execute"]):
+        flags["build"] = True
+        flags["execute"] = True
 
-        dump(compose, compose_file)
-        print("'docker-compose.yml' generado correctamente.\nSe procede a la ejecución del docker-compose")
+    if flags["build"]:
+        file = open("./config.yml", "r")
+        compose_file = open("./docker-compose.yml", "w")
+        config:dict = load (file, Loader=Loader)
+        compose:Compose = {}
+        compose["version"]="1.0.0"
+        try:
+            (network, nodes) = reader(config, compose, debug=debug)
+            print("Se ha leído config.yml correctamente")
+            if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tNodes:\t{nodes}{Fore.RESET}")
+            generate_network(network, compose, debug=debug)
+            print("Red implementada correctamente.")
+            parse_node(nodes, compose, network, debug=debug)
+            dump(compose, compose_file)
+            print(f"{Fore.GREEN}'docker-compose.yml' generado correctamente.{Fore.RESET}")
+        except KeyError as e:
+            print(f'{Fore.RED}KeyError: No existe el parámetro {e} en config.yml{Fore.RESET}')
+        except ReaderException as e:
+            print(f"{Fore.RED}Ha habido un problema en la lectura: \n\t{e}{Fore.RESET}")
+        except ParseNodeException as e:
+            print(f'{Fore.RED}Ha habido un problema en el parseo de elementos: \n\t{e}{Fore.RESET}')
+        except Exception as e:
+            print(f"{Fore.RED}Ha ocurrido un error desconocido: \n\t{e}{Fore.RESET}")
+        finally:
+            file.close()
+            compose_file.close()
+    
+    if flags["execute"]:
+        if flags["monitor"]:
+            #TODO Ejecutar en modo "monitor"
+            pass
+        if flags["usage"]:
+            #TODO Ejecutar en modo "usage"
+            pass
+        
+        running:bool = False
+        with keyboard.Events() as events:
+            print(f"Pulse '{Fore.BLACK}{Back.WHITE}r{Fore.RESET}{Back.RESET}' para ejecutar docker-compose en segundo plano"+
+                  f" y '{Fore.BLACK}{Back.WHITE}s{Fore.RESET}{Back.RESET}' para parar su ejecución."+
+                  f" Para salir de la aplicación, pulse la tecla '{Fore.BLACK}{Back.WHITE}esc{Fore.RESET}{Back.RESET}'.")
+            for event in events:
+                if f'{event.key}' == "'r'" and not running:
+                    print("Corriendo el subproceso 'docker-compose'...")
+                    running = True
+
+                    print("Creando subproceso docker-compose...")
+                    process_compose:subprocess.Popen = subprocess.Popen(shlex.split("docker compose up"),
+                                                    stdout=subprocess.PIPE,
+                                                    universal_newlines=True)
+                    print(f"{Fore.GREEN}Subproceso creado correctamente!{Fore.RESET}")
+                    t = Thread(target=read_output, args=(process_compose,))
+                    t.start()
+                    
+                    
+                elif f'{event.key}' == "'s'" and running:
+                    running = False
+                    print(f"{Fore.GREEN}Parando el subproceso...{Fore.RESET}")
+                    stop_compose()
+
+                elif event.key == keyboard.Key.esc:
+                    if(running):
+                        #TODO Igual que el caso anterior
+                        print(f"{Fore.GREEN}Parando el subproceso...{Fore.RESET}")
+                        stop_compose()
+                    break
 
 
-    except KeyError as e:
-        print(f'{Fore.RED}KeyError: No existe el parámetro {e} en config.yml{Fore.RESET}')
-    except ReaderException as e:
-        print(f"{Fore.RED}Ha habido un problema en la lectura: \n\t{e}{Fore.RESET}")
-    except ParseNodeException as e:
-        print(f'{Fore.RED}Ha habido un problema en el parseo de elementos: \n\t{e}{Fore.RESET}')
-    except Exception as e:
-        print(f"{Fore.RED}Ha ocurrido un error desconocido: \n\t{e}{Fore.RESET}")
-    finally:
-        file.close()
-        compose_file.close()
+        
+    else:
+        if flags["monitor"] or flags["usage"]:
+            #TODO Imprimir mensaje de error, esta opción debe ir junto con "execute"
+            pass
 
 
 if __name__=="__main__":
-    dockerlab(debug=True)
+    parser = argparse.ArgumentParser(description="Herramienta para el despliegue de laboratorios virtuales mediante Docker. Por defecto, en caso de no proporcionar parámetros, se ejecutará con las banderas -be.")
+    for i in [["-b", "--build",     "Indica que se desea generar el archivo docker-compose.yaml. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes."],
+              ["-e", "--execute",   "Indica que se desean crear y levantar los contenedores definidos en docker-compose.yaml."],
+              ["-m", "--monitor",   "Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con -e."],
+              ["-u", "--usage",     "Monitoriza el uso de recursos dentro de los contenedores de la simulación. Debe usarse junto con -e."]]:
+        parser.add_argument(i[0],i[1], action='store_true', help=i[2])
+    flags:Arguments = vars(parser.parse_args())
+    dockerlab(debug=False, flags=flags)
