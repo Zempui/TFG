@@ -19,7 +19,7 @@ Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de ban
 - [x] `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yaml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
 - [x] `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yaml`.
 - [ ] `-m` o `--monitor`: Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con `-e`.
-- [x] `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación.
+- [x] `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación. Debe usarse junto con `-e`.
 
 Por defecto, en caso de no proporcionar parámetros, se ejecutará con las banderas `-be`.
 Una vez el archivo `docker-compose.yml` haya sido creado, se proporcionará la opción de correr la simulación pulsando la tecla `r` y de pararla pulsando la tecla `s`. Para salir de la aplicación, se debe pulsar la tecla `esc`.
