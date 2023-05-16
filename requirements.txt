@@ -1,7 +1,8 @@
+docker
 colorama
 typing
 ipaddress
-docker-py
-docker
 pyyaml
 pynput
+tk
+pysimplegui

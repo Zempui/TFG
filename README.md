@@ -6,7 +6,7 @@ Una vez descargado el repositorio, se introducirá en la carpeta contenedora del
 - `<lab_name>`: nombre del laboratorio (en el ejemplo, `lab`).
   - `network`: dirección IPv4 que indica la subred del laboratorio.
   - `nodes`: lista de nodos que componen el laboratorio.
-    - `<node_name>`: nombre del nodo en cuestión.
+    - `<node_name>`: nombre del nodo en cuestión. **Advetencia**: El nombre `sniffer` está reservado para el nodo de monitorización y, si se añade un nodo con este nombre, será eliminado a la hora de ejecutar el programa y monitorizar el tráfico de red.
       - `image`: imagen en la que se va a basar el nodo. Es excluyente con la funcionalidad `build`.
       - `build`: en caso de querer basar un nodo en un contenedor definido por el usuario, se incluirá una carpeta en el directorio actual que contenga los archivos necesarios para su despliegue y se indicará en esta directiva su nombre. Es excluyente con la funcionalidad `image`.
       - `script`: en caso de querer que se ejecute un shell-script en el contenedor a desplegar cuando este se inicie, se debe indicar aquí su nombre tal y como esté almacenado en el directorio actual.
@@ -19,7 +19,7 @@ Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de ban
 - [x] `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yaml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
 - [x] `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yaml`.
 - [ ] `-m` o `--monitor`: Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con `-e`.
-- [ ] `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación.
+- [x] `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación.
 
 Por defecto, en caso de no proporcionar parámetros, se ejecutará con las banderas `-be`.
 Una vez el archivo `docker-compose.yml` haya sido creado, se proporcionará la opción de correr la simulación pulsando la tecla `r` y de pararla pulsando la tecla `s`. Para salir de la aplicación, se debe pulsar la tecla `esc`.

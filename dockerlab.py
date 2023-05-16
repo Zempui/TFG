@@ -20,6 +20,10 @@ from pynput import keyboard
 from threading import Thread
 import signal
 import os
+import docker
+import re
+import PySimpleGUI as sg
+import time
 
 
 ###############################
@@ -45,6 +49,7 @@ class Service (TypedDict):
     deploy:Optional[dict]
     volumes:list
     networks:list
+    cap_add:Optional[list] #Sólo para nodo de monitorización
 
 ###############################
 #  DEFINICIÓN DE EXCEPCIONES  #
@@ -74,6 +79,10 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
     una clave definida en dicho diccionario y dividirá su contenido en dos
     diccionarios, "network" y "nodes". Guardará el nombre de la clave en el
     diccionario "compose".
+
+    El nombre "sniffer" está reservado para el nodo de monitorización y si
+    se añade un nodo con este nombre, será eliminado a la hora de ejecutar
+    el programa y monitorizar los recursos
     """
     network:IPv4Network = ip_network("10.0.0.0/8")
     nodes:dict = {}
@@ -111,10 +120,26 @@ def generate_network(network:IPv4Network, compose:Compose, *args, **conf) -> Non
     Función "generate_network", que plasma los contenidos de "network"
     en el diccionario "compose".
     """
-    compose["networks"]={f"{compose['name']}_network":
-                                {"driver":"bridge",
-                                "ipam":{"driver":"default",
-                                        "config":[{"subnet":f"{network}"}]}}}
+    name = f"{compose['name']}_network"
+    compose["networks"]={f"{name}":
+                                {"name":f"{name}",
+                                "external":True}}
+    client = docker.from_env()
+    try:
+        client.networks.create(name=name, driver="bridge", ipam={"Config":[{"subnet":f"{network}"}]}, check_duplicate=True)
+    except docker.errors.APIError:
+        # Red creada anteriormente o red con la misma IP
+        for i in client.networks.list():
+            if ((i.name not in {"none", "host", "bridge"} and
+                    len(i.attrs["IPAM"]["Config"])>0 and                    
+                    "Subnet" in i.attrs["IPAM"]["Config"][0] and            
+                    (ip_network(i.attrs["IPAM"]["Config"][0]["Subnet"]).subnet_of(network) or
+                     ip_network(i.attrs["IPAM"]["Config"][0]["Subnet"]).supernet_of(network))) or 
+                     i.name==name):
+                client.networks.get(i.attrs["Id"]).remove()
+
+        client.networks.create(name=name, driver="bridge", ipam={"Config":[{"subnet":f"{network}"}]}, check_duplicate=True)
+
     if "debug" in conf and conf["debug"]:
         print(f"{Fore.BLUE}\tnetworks: {compose['networks']}{Fore.RESET}")
 
@@ -131,7 +156,8 @@ def new_ip_addr(network:IPv4Network, ip_list:set[IPv4Address], n:int) -> list[IP
         for addr in network:
             if (not (addr in ip_list)               # Si la IP no está en la lista
                     and addr.packed[3:]!=b'\x00'    # Si la IP no acaba en '.0'
-                    and addr.packed[3:]!=b'\x01'):  # Si la IP no acaba en '.1' (??)
+                    and addr.packed[3:]!=b'\x01'    # Si la IP no acaba en '.1' (Host)
+                    and addr.packed[3:]!=b'\xff'):  # Si la IP no acaba en '.255'
                 result.append(addr)
                 n -= 1
             if n<1: break
@@ -154,15 +180,27 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
         if "build" in nodes[node]: case1=True
         if "image" in nodes[node]: case2=True
 
-        if(case1 and case2):
+
+        if(case1 and case2) and node != "sniffer":
             raise ParseNodeException(f"El nodo {node} contiene cláusulas 'build':{nodes[node]['build']} e 'image':{nodes[node]['image']}")
-        elif not(case1 or case2):
+        elif not(case1 or case2) and node != "sniffer":
             raise ParseNodeException("El nodo no contiene cláusulas 'build' ni 'image'")
         else:
             service:Service = {}
             service_replica:list[Service] = []
 
-            if case1:   #Caso 1: contiene "build"
+            if node == "sniffer": #Caso 0 : Nodo de monitorización
+                service["image"] = "nicolaka/netshoot"
+                service["cap_add"] = ["NET_ADMIN"]
+                service["entrypoint"] = "/bin/bash /workspace/script_sniffer.sh"
+                service ["volumes"]  = ["./:/workspace"]
+                ip:IPv4Address = new_ip_addr(network, ip_list, 1)[0]
+                ip_list.add(ip)
+                service["networks"] = {list(compose["networks"])[0]:{"ipv4_address":f"{ip}"}}
+                compose["services"][node] = service
+                continue
+
+            elif case1:   #Caso 1: contiene "build"
                 service["build"] = nodes[node]["build"]
             elif case2: #Caso 2: contiene "image"
                 service["image"] = nodes[node]["image"]
@@ -271,6 +309,93 @@ def stop_compose() -> None:
         t = Thread(target=read_output, args=(p,))
         t.start()
 
+
+def read_monitor_output(proc:subprocess.Popen, content:list[list]) -> None:
+    """
+    Función read_monitor_output. Actualiza el contenido de una lista bidimensional 'content'
+    con el output del proceso de monitorización 'proc' en un instante determinado.
+    """
+    header:bool = True
+    result:list[list]=[]
+    for line in proc.stdout:
+        current_stats:list=["-","-","-","-","-","-","-","-"]
+        if header:
+            header = False
+        else:
+            split_line:list[str] = re.split(r'\s{2,}',line)
+            if len(split_line) == 8:
+                for i in range(len(split_line)):
+                    current_stats[i]=split_line[i].strip()
+
+            else:
+                print("La línea contiene",len(split_line),"parámetros:")
+                for i in split_line:
+                    print("\t",i)
+                print()
+            result.append(current_stats)
+
+
+    for i in range(len(content)):
+        if i<len(result):
+            content[i]=result[i]
+        else:
+            content[i]=["-","-","-","-","-","-","-","-"]
+
+    return_code = proc.wait()
+    # imprime el código de retorno del subproceso en caso de error
+    if return_code != 0:
+        print(f"Proceso 'read_monitor_output' finalizado con código: {Fore.RED}{return_code}{Fore.RESET}")
+    else:
+        print(f"{Fore.BLUE}Valores de monitorización refrescados{Fore.RESET}")
+
+
+def itera_monitor_output(content:list[list]) -> None:
+    """
+    Función itera_monitor_output, que actualiza el contenido de una lista bidimensional 'content'
+    con las estadísticas de los contenedores actualmente en ejecución en el equipo cada segundo.
+    """
+    while(True):
+        process:subprocess.Popen = subprocess.Popen(shlex.split('docker stats --no-trunc --no-stream --format "table {{.ID}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}\t{{.PIDs}}"'),
+                                                stdout=subprocess.PIPE,
+                                                universal_newlines=True)
+        Thread(target=read_monitor_output, args=(process, content, )).start()
+        time.sleep(1)
+
+
+def interfaz_monitor(max_containers:int) -> None:
+    """
+    Función interfaz_monitor que mostrará la interfaz gráfica de monitorización del uso de recursos.
+    Toma como único parámetro el número máximo de contenedores que monitorizar.
+    """
+    sg.theme('Default 1')
+    content=[]
+    for i in range(max_containers):
+        content.append(["-","-","-","-","-","-","-","-"])
+
+    Thread(target=itera_monitor_output, args=(content, ), daemon=True).start()
+    
+
+    layout = [[sg.Text('Monitorización de recursos'), sg.Text(text_color="red",key='-WARNING-')],
+            [sg.Table(content, ["ID del Contenedor", "Nombre", "CPU %", "Memoria Utilizada", "Memoria %", "I/O de Red", "I/O de Bloque", "PIDs"], key="-TABLE-")],
+            [sg.Button("Refrescar"), sg.Text("r", text_color="green"), sg.Text("ejecuta docker-compose en segundo plano,"), 
+                                     sg.Text("s", text_color="red"), sg.Text("detiene la ejecución de los contenedores,"),
+                                     sg.Text("esc", text_color="blue"), sg.Text("sale de la aplicación.")]
+            ]
+    window = sg.Window('Dockerlab - Resources', layout, icon="./Img/monitor_icon.png")
+
+    while True: 
+        
+        event, values = window.read()
+        
+        if event == sg.WIN_CLOSED or event == 'Exit' or event == None:
+            break
+        window["-TABLE-"].update(content)
+        if content[-1:][0] != ["-","-","-","-","-","-","-","-"]:
+            window['-WARNING-'].update("ADVERTENCIA: algunos contenedores pueden no estar siendo mostrados")
+        else:
+            window["-WARNING-"].update("")
+    window.close()
+
 ###############################
 #      SCRIPT PRINCIPAL       #
 ###############################
@@ -292,6 +417,8 @@ def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "m
             if debug: print(f"{Fore.BLUE}\tNetwork:\t{network}\n\tNodes:\t{nodes}{Fore.RESET}")
             generate_network(network, compose, debug=debug)
             print("Red implementada correctamente.")
+            if (flags["monitor"]):
+                nodes["sniffer"] = {"":""}
             parse_node(nodes, compose, network, debug=debug)
             dump(compose, compose_file)
             print(f"{Fore.GREEN}'docker-compose.yml' generado correctamente.{Fore.RESET}")
@@ -308,11 +435,23 @@ def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "m
             compose_file.close()
     
     if flags["execute"]:
+        # Hacemos pull y build
+        print(f"{Fore.GREEN}Haciendo pull a los contenedores...{Fore.RESET}")
+        read_output(subprocess.Popen(shlex.split("docker compose pull"),
+                                    stdout=subprocess.PIPE,
+                                    universal_newlines=True))
+        print(f"{Fore.GREEN}¡Pull realizado correctamente!{Fore.RESET}")
+        print(f"{Fore.GREEN}Construyendo contenedores...{Fore.RESET}")
+        read_output(subprocess.Popen(shlex.split("docker compose build"),
+                                    stdout=subprocess.PIPE,
+                                    universal_newlines=True))
+        print(f"{Fore.GREEN}¡Contenedores construidos satisfactoriamente!{Fore.RESET}")
+
         if flags["monitor"]:
             #TODO Ejecutar en modo "monitor"
             pass
         if flags["usage"]:
-            #TODO Ejecutar en modo "usage"
+            Thread(target=interfaz_monitor, args=(len(compose["services"])+10,)).start()
             pass
         
         running:bool = False
@@ -335,13 +474,12 @@ def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "m
                     
                     
                 elif f'{event.key}' == "'s'" and running:
-                    running = False
+                    running = False #TODO: Si se pulsa antes de que empieze a ejecutar el docker-compose, se queda en un bucle infinito
                     print(f"{Fore.GREEN}Parando el subproceso...{Fore.RESET}")
                     stop_compose()
 
                 elif event.key == keyboard.Key.esc:
                     if(running):
-                        #TODO Igual que el caso anterior
                         print(f"{Fore.GREEN}Parando el subproceso...{Fore.RESET}")
                         stop_compose()
                     break
