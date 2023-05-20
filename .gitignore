@@ -1,8 +1,0 @@
-.venv
-.vscode
-__pycache__
-docker-compose*
-*.pcap
-.gitignore
-docker-compose
-*.pcap
