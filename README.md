@@ -15,11 +15,11 @@ Una vez descargado el repositorio, se introducirá en la carpeta contenedora del
       - `replicas`: en caso de desear desplegar varios contenedores con configuraciones similares, se indicará en esta directiva el número de instancias a desplegar. Es incompatible con la funcionalidad `ip` sólo en caso de que su valor sea superior a "1".
       - `needs`: lista de dependencias para el despliegue del contenedor. Sirve para generar un orden de despliegue personalizado.
 ## Ejecución
-Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de banderas en sus argumentos (en implementación):
-- [x] `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yaml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
-- [x] `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yaml`.
-- [x] `-m` o `--monitor`: Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con `-e`.
-- [x] `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación. Debe usarse junto con `-e`.
+Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de banderas en sus argumentos:
+- `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yaml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
+- `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yaml`.
+- `-m` o `--monitor`: Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con `-e`.
+- `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación. Debe usarse junto con `-e`.
 
 Por defecto, en caso de no proporcionar parámetros, se ejecutará con las banderas `-be`.
 Una vez el archivo `docker-compose.yml` haya sido creado, se proporcionará la opción de correr la simulación pulsando la tecla `r` y de pararla pulsando la tecla `s`. Para salir de la aplicación, se debe pulsar la tecla `esc`.
