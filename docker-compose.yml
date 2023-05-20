@@ -81,14 +81,4 @@ services:
         ipv4_address: 10.10.0.6
     volumes:
     - ./:/workspace
-  sniffer:
-    cap_add:
-    - NET_ADMIN
-    entrypoint: /bin/bash /workspace/script_sniffer.sh
-    image: nicolaka/netshoot
-    networks:
-      lab_network:
-        ipv4_address: 10.10.0.7
-    volumes:
-    - ./:/workspace
 version: 1.0.0

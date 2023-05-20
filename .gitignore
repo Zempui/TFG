@@ -1,6 +1,8 @@
 .venv
 .vscode
 __pycache__
-docker-compose(referencia).yml
+docker-compose*
 *.pcap
 .gitignore
+docker-compose
+*.pcap
