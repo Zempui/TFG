@@ -46,6 +46,7 @@ class Service (TypedDict):
     entrypoint:Optional[str]
     depends_on:Optional[list]
     deploy:Optional[dict]
+    environment:Optional[list]
     volumes:list
     networks:list
 
@@ -337,6 +338,7 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
                             for i in range(replicas):
                                 ip_list.add(ips[i])
                                 service_replica[i]["networks"] = {list(compose["networks"])[0]:{"ipv4_address":f"{ips[i]}"}}
+                                service_replica[i]["environment"] = [f"REPLICA_ID={i}"]
                             
 
                         else: # [2.1.2.]
@@ -347,6 +349,7 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
                         for i in range(replicas):
                             ip_list.add(ips[i])
                             service_replica[i]["networks"] = {list(compose["networks"])[0]:{"ipv4_address":f"{ips[i]}"}}
+                            service_replica[i]["environment"] = [f"REPLICA_ID={i}"]
                         
 
             elif "ip" in nodes[node]: # [3.]

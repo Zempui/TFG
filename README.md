@@ -12,7 +12,7 @@ Una vez descargado el repositorio, se introducirá en la carpeta contenedora del
       - `script`: en caso de querer que se ejecute un shell-script en el contenedor a desplegar cuando este se inicie, se debe indicar aquí su nombre tal y como esté almacenado en el directorio actual.
       - `network`: si deseamos que se le asigne una dirección IP en un subrango de la red del laboratorio, se indicará en esta directiva. Es excluyente con la funcionalidad `ip`.
       - `ip`: si deseamos que al nodo actual se le despliegue con una dirección IP concreta dentro del rango de la red del laboratorio, se indicará en esta directiva. Es excluyente con las funcionalidades `network` y `replicas`.
-      - `replicas`: en caso de desear desplegar varios contenedores con configuraciones similares, se indicará en esta directiva el número de instancias a desplegar. Es incompatible con la funcionalidad `ip` sólo en caso de que su valor sea superior a "1".
+      - `replicas`: en caso de desear desplegar varios contenedores con configuraciones similares, se indicará en esta directiva el número de instancias a desplegar. Es incompatible con la funcionalidad `ip` sólo en caso de que su valor sea superior a "1". Cada réplica tendrá una variable de entorno `$REPLICA_ID` con un identificador que ayude a diferenciarla de las demás (un valor entre 0 y el número máximo de réplicas - sin incluir este último).
       - `needs`: lista de dependencias para el despliegue del contenedor. Sirve para generar un orden de despliegue personalizado.
 ## Ejecución
 Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de banderas en sus argumentos:
