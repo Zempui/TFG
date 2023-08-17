@@ -16,8 +16,8 @@ Una vez descargado el repositorio, se introducirá en la carpeta contenedora del
       - `needs`: lista de dependencias para el despliegue del contenedor. Sirve para generar un orden de despliegue personalizado.
 ## Ejecución
 Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de banderas en sus argumentos:
-- `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yaml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
-- `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yaml`.
+- `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
+- `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yml`.
 - `-m` o `--monitor`: Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con `-e`.
 - `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación. Debe usarse junto con `-e`.
 
