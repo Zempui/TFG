@@ -505,7 +505,10 @@ def monitoriza_red(network:IPv4Network) -> None:
 
     addrs = psutil.net_if_addrs()
     for i,j in addrs.items():
-        if ip_address(j[0].address) == network[1]:
+        try:
+            if ip_address(j[0].address) == network[1]:
+                if_name=i
+        except ValueError as e:
             if_name=i
     
     if if_name is not None:
