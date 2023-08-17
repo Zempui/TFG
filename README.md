@@ -41,6 +41,7 @@ apt upgrade
 apt install docker
 apt install docker-compose
 apt install python3
+apt install python3-tk
 ```
 3. Para instalar las librerías necesarias, situarse en la carpeta contenedora del archivo `requirements.txt` y ejecutar la orden:
 ```bash
@@ -48,6 +49,7 @@ python3 -m pip install -r requirements.txt
 ```
 
 ## Errores conocidos
+- A la hora de ejecutar el programa por primera vez, es posible que aparezca el error `Got permission denied while trying to connect to the Docker daemon socket`, esto es debido a que el usuario desde el que se está ejecutando la aplicación no pertenece al grupo `docker`. Para solucionarlo, primero habrá que crear dicho grupo con `sudo groupadd docker`. A continuación, habrá que añadir al usuario a dicho grupo mediante la orden `sudo usermod -aG docker ${USER}`. Posteriormente, habrá que volver a iniciar la sesión de dicho usuario mediante `su - ${USER}`. Para comprobar que todo funcione correctamente, se pueded ejecutar el comando `docker run hello-world`.
 - Si a la hora de parar la ejecución se recibe un error `Error while Stopping` y los contenedores continúan con su ejecución, puede deberse al uso de AppArmor (módulo de seguridad del kernel Linux que permite al administrador del sistema restringir las capacidades de un programa). Para solucionar el problema, abrir una nueva terminal y escribir `sudo aa-remove-unknown`[^2]. Una vez ejecutado, escribir `docker compose down`, el problema debería solucionarse de esta forma.
 
 [^1]: Se ha probado el correcto funcionamiento del presente repositorio con las versiones indicadas de las dependencias, por lo que, aunque puede que funcione correctamente con algunas versiones anteriores, sólo se puede garantizar que no se van a encontrar problemas inesperados con las versiones aquí indicadas.
