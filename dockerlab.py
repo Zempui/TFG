@@ -627,8 +627,8 @@ def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "m
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Herramienta para el despliegue de laboratorios virtuales mediante Docker. Por defecto, en caso de no proporcionar parámetros, se ejecutará con las banderas -be.")
-    for i in [["-b", "--build",     "Indica que se desea generar el archivo docker-compose.yaml. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes."],
-              ["-e", "--execute",   "Indica que se desean crear y levantar los contenedores definidos en docker-compose.yaml."],
+    for i in [["-b", "--build",     "Indica que se desea generar el archivo docker-compose.yml. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes."],
+              ["-e", "--execute",   "Indica que se desean crear y levantar los contenedores definidos en docker-compose.yml."],
               ["-m", "--monitor",   "Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con -e."],
               ["-u", "--usage",     "Monitoriza el uso de recursos dentro de los contenedores de la simulación. Debe usarse junto con -e."]]:
         parser.add_argument(i[0],i[1], action='store_true', help=i[2])
