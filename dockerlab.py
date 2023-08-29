@@ -202,7 +202,7 @@ def create_network(network:IPv4Network,name:str, *args, **conf) -> bool:
         
         for err in p.stderr:
             network_created=False
-            if "network with name lab_network already exists" not in err:
+            if "network with name"not in err and "already exists" not in err:
                 print(f"{Fore.RED}{err}{Fore.RESET}", end='')
 
         if "debug" in conf and conf["debug"]:
@@ -297,7 +297,7 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
 
             service ["volumes"]  = ["./:/workspace"]
             if "needs" in nodes[node]:      service["depends_on"]   = nodes[node]["needs"]
-            if "script" in nodes[node]:     service["entrypoint"]   = f'/bin/bash /workspace/{nodes[node]["script"]}'
+            if "script" in nodes[node]:     service["entrypoint"]   = f'/bin/sh /workspace/{nodes[node]["script"]}'
 
             
             #########################################################################################################
