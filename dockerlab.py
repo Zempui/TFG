@@ -409,7 +409,7 @@ def read_output(proc) -> None:
     # espera a que el subproceso termine y obtiene su código de retorno
     return_code = proc.wait()
     # imprime el código de retorno del subproceso
-    print(f"Código de retorno: {return_code}")
+    print(f"Código de retorno (read output): {return_code}")
 
 
 def stop_compose() -> None:
@@ -526,8 +526,9 @@ def monitoriza_red(network:IPv4Network) -> None:
         try:
             if ip_address(j[0].address) == network[1]:
                 if_name=i
-        except ValueError as e:
-            if_name=i
+        except ValueError as e: # No hay dirección IP en esta interfaz
+            pass
+            #if_name=i
     
     if if_name is not None:
         print(f"{Fore.GREEN}Comienza la monitorización!{Fore.RESET}")
