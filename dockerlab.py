@@ -36,7 +36,7 @@ class Arguments(TypedDict):
 
 class Compose (TypedDict):
     version:str
-    name:str
+    #name:str
     services:dict
     networks:dict
 
@@ -79,6 +79,7 @@ class Docker_Network(TypedDict):
 ###############################
 tshark_process:subprocess.Popen = None
 continue_monitor:bool           = True
+compose_name:str = ""
 
 ###############################
 #  DEFINICIÓN DE EXCEPCIONES  #
@@ -123,7 +124,8 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
         if len(lab) > 2:
             raise(ReaderException(f"Se han definido más parámetros de los admitidos: {list(lab)}"))
         else:
-            compose["name"]=list(config)[0]
+            global compose_name 
+            compose_name=list(config)[0]
             try:
                 network = ip_network(lab["network"])
                 print(f"{Fore.GREEN}\tRed [{network}] añadida{Fore.RESET}")
@@ -140,7 +142,7 @@ def reader(config:dict, compose:Compose, *args, **conf) -> tuple:
     return(network, nodes)
 
 
-def list_networks(*args, **conf) -> list[Docker_Network_List]:
+def list_networks(is_debugging=False, *args, **conf) -> list[Docker_Network_List]:
     """
     Función que devuelve una lista con un resumen de cada una de las redes actualmente definidas
     por docker.
@@ -161,31 +163,36 @@ def list_networks(*args, **conf) -> list[Docker_Network_List]:
                 network_list.append(network)
             header=False
 
-        if "debug" in conf and conf["debug"]: 
-            print(f"Código de retorno (Network listing): {p.wait()}")
+        if is_debugging: 
+            print(f"{Fore.BLUE}Código de retorno (Network listing): {p.wait()}{Fore.RESET}")
     return network_list
 
 
-def get_network_data(docker_network:Docker_Network_List, *args, **conf) -> Docker_Network:
+def get_network_data(docker_network:Docker_Network_List, is_debugging:bool=False, *args, **conf) -> Docker_Network:
     """
     Función que, proporcionada la información resumida de una red, devuelve la información completa
     de la misma.
     """
     result:Docker_Network=None
-    error:bool = False
-    with subprocess.Popen(shlex.split(f"docker network inspect {docker_network['name']} -f json"),
+    if is_debugging: print(f"{Fore.BLUE}Ejecutando 'docker network inspect {docker_network['name']}'...{Fore.RESET}")
+    with subprocess.Popen(shlex.split(f"docker network inspect {docker_network['name']}"),
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     universal_newlines=True) as p:
-        for err in p.stderr:
-            error = True
-            print(f"{Fore.RED}{err}{Fore.RESET}", end='')
-        for line in p.stdout:
-            if not error:
-                result = json.loads(line)[0]
-        if "debug" in conf and conf["debug"]: 
-            print(f"Código de retorno (Network specification): {p.wait()}")
-    return result
+        stdout, stderr = p.communicate()
+    # Verifica si hubo errores en la salida estándar
+    if p.returncode == 0:
+        # Intenta parsear la salida como JSON
+        try:
+            result = json.loads(stdout)
+        except json.JSONDecodeError as e:
+            print(f"{Fore.RED}Error al parsear la salida JSON:{e}{Fore.RESET}")
+    else:
+        print(f"{Fore.RED}Error al ejecutar el comando Docker: {stderr}{Fore.RESET}")
+
+    if is_debugging: 
+        print(f"{Fore.BLUE}Código de retorno (Network specification): {p.wait()}{Fore.RESET}")
+    return result[0]
 
 
 def create_network(network:IPv4Network,name:str, *args, **conf) -> bool:
@@ -195,14 +202,19 @@ def create_network(network:IPv4Network,name:str, *args, **conf) -> bool:
     """
     network_created:bool = True
 
-    with subprocess.Popen(shlex.split(f"docker network create --driver=bridge --opt com.docker.network.bridge.name=br-dockerlab --subnet {network} {name}"),
+    with subprocess.Popen(shlex.split("docker network create --driver=bridge "+
+                                      "--opt com.docker.network.bridge.name=br-dockerlab "+
+                                      "--opt com.docker.network.bridge.enable_icc=true "+
+                                      "--opt com.docker.network.bridge.enable_ip_masquerade=true "+
+                                      "--opt com.docker.network.bridge.host_binding_ipv4=0.0.0.0 "+
+                                      f"--subnet {network} {name}"),
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 universal_newlines=True) as p:
         
         for err in p.stderr:
             network_created=False
-            if "network with name lab_network already exists" not in err:
+            if "network with name"not in err and "already exists" not in err:
                 print(f"{Fore.RED}{err}{Fore.RESET}", end='')
 
         if "debug" in conf and conf["debug"]:
@@ -214,16 +226,22 @@ def generate_network(network:IPv4Network, compose:Compose, *args, **conf) -> Non
     """
     Función "generate_network", que genera la red que utilizaremos en nuestro compose.
     """
-    name = f"{compose['name']}_network"
+    is_debugging=False
+    name = f"{compose_name}_network"
     compose["networks"]={f"{name}":
-                                {"name":f"{name}",
+                                {#"name":f"{name}",
                                 "external":True}}
+    if "debug" in conf and conf["debug"]: 
+        print(f"{Fore.BLUE}compose['networks']={compose['networks']}{Fore.RESET}")
     if not create_network(network, name):
         # Red creada anteriormente o red con la misma IP
-        
-        for i in list_networks():
-            docker_network:Docker_Network=get_network_data(i)
-
+        if "debug" in conf and conf["debug"]: 
+            print(f"{Fore.BLUE}network, name = {network}, {name}{Fore.RESET}")
+            is_debugging=True
+        for i in list_networks(is_debugging):
+            if "debug" in conf and conf["debug"]: print(f"{Fore.BLUE}i (list_networks)={i}{Fore.RESET}")
+            docker_network:Docker_Network=get_network_data(i, is_debugging)
+            if "debug" in conf and conf["debug"]: print(f"{Fore.BLUE}docker_network={docker_network}{Fore.RESET}")
             if ((docker_network["Name"] not in {"none", "host", "bridge"} and
                     len(docker_network["IPAM"]["Config"])>0 and                    
                     "Subnet" in docker_network["IPAM"]["Config"][0] and            
@@ -297,7 +315,7 @@ def parse_node(nodes:dict, compose:Compose, network:IPv4Network, *args, **conf) 
 
             service ["volumes"]  = ["./:/workspace"]
             if "needs" in nodes[node]:      service["depends_on"]   = nodes[node]["needs"]
-            if "script" in nodes[node]:     service["entrypoint"]   = f'/bin/bash /workspace/{nodes[node]["script"]}'
+            if "script" in nodes[node]:     service["entrypoint"]   = f'/bin/sh /workspace/{nodes[node]["script"]}'
 
             
             #########################################################################################################
@@ -391,11 +409,11 @@ def read_output(proc) -> None:
     # espera a que el subproceso termine y obtiene su código de retorno
     return_code = proc.wait()
     # imprime el código de retorno del subproceso
-    print(f"Código de retorno: {return_code}")
+    print(f"Código de retorno (read output): {return_code}")
 
 
 def stop_compose() -> None:
-    with subprocess.Popen(shlex.split("docker compose stop"),
+    with subprocess.Popen(shlex.split("docker-compose stop"),
                                         stdout=subprocess.PIPE,
                                         universal_newlines=True) as p:
         t = Thread(target=read_output, args=(p,))
@@ -505,8 +523,12 @@ def monitoriza_red(network:IPv4Network) -> None:
 
     addrs = psutil.net_if_addrs()
     for i,j in addrs.items():
-        if ip_address(j[0].address) == network[1]:
-            if_name=i
+        try:
+            if ip_address(j[0].address) == network[1]:
+                if_name=i
+        except ValueError as e: # No hay dirección IP en esta interfaz
+            pass
+            #if_name=i
     
     if if_name is not None:
         print(f"{Fore.GREEN}Comienza la monitorización!{Fore.RESET}")
@@ -528,7 +550,7 @@ def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "m
         compose_file = open("./docker-compose.yml", "w")
         config:dict = load (file, Loader=Loader)
         compose:Compose = {}
-        compose["version"]="1.0.0"
+        compose["version"]="3.3"
         try:
             (network, nodes) = reader(config, compose, debug=debug)
             print("Se ha leído config.yml correctamente")
@@ -553,12 +575,12 @@ def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "m
     if flags["execute"]:
         # Hacemos pull y build
         print(f"{Fore.GREEN}Haciendo pull a los contenedores...{Fore.RESET}")
-        read_output(subprocess.Popen(shlex.split("docker compose pull"),
+        read_output(subprocess.Popen(shlex.split("docker-compose pull"),
                                     stdout=subprocess.PIPE,
                                     universal_newlines=True))
         print(f"{Fore.GREEN}¡Pull realizado correctamente!{Fore.RESET}")
         print(f"{Fore.GREEN}Construyendo contenedores...{Fore.RESET}")
-        read_output(subprocess.Popen(shlex.split("docker compose build"),
+        read_output(subprocess.Popen(shlex.split("docker-compose build"),
                                     stdout=subprocess.PIPE,
                                     universal_newlines=True))
         print(f"{Fore.GREEN}¡Contenedores construidos satisfactoriamente!{Fore.RESET}")
@@ -596,7 +618,7 @@ def dockerlab(debug:bool=False,flags:Arguments={"build":True, "execute":True, "m
                     running = True
 
                     print("Creando subproceso docker-compose...")
-                    process_compose:subprocess.Popen = subprocess.Popen(shlex.split("docker compose up --remove-orphans --force-recreate"),
+                    process_compose:subprocess.Popen = subprocess.Popen(shlex.split("docker-compose up --remove-orphans --force-recreate"),
                                                     stdout=subprocess.PIPE,
                                                     universal_newlines=True)
                     print(f"{Fore.GREEN}Subproceso creado correctamente!{Fore.RESET}")
