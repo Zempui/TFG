@@ -1,4 +1,4 @@
-# Tool for Deploying Virtual Labs Using Docker
+# Virtual Laboratory Deployment Tool using Docker
 
 This repository contains a tool to automate the deployment of virtual labs using Docker.  
 It was developed as a Bachelor's Thesis (TFG) during the 2022/23 academic year for the Bachelor's Degree in Telecommunication Technologies Engineering at the University of Seville.
