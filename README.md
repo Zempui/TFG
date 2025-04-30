@@ -1,56 +1,69 @@
-# Herramienta para despliegue de laboratorios virtuales mediante Docker
-El presente repositorio muestra una herramienta para automatizar el despliegue de laboratorios virtuales mediante Docker.
-Se trata de un Trabajo de Fin de Grado (TFG) desarrollado en el curso 2022/23 para el Grado en Ingeniería de las Tecnologías de Telecomunicación de la Universidad de Sevilla.
-## Funcionamiento
-Una vez descargado el repositorio, se introducirá en la carpeta contenedora del archivo "dockerlab.py" un script llamado "config.yml" en formato YAML, el cual contendrá las especificaciones del laboratorio virtual a desplegar. Actualmente, el archivo debe tener la siguiente estructura:
-- `<lab_name>`: nombre del laboratorio (en el ejemplo, `lab`).
-  - `network`: dirección IPv4 que indica la subred del laboratorio.
-  - `nodes`: lista de nodos que componen el laboratorio.
-    - `<node_name>`: nombre del nodo en cuestión.
-      - `image`: imagen en la que se va a basar el nodo. Es excluyente con la funcionalidad `build`.
-      - `build`: en caso de querer basar un nodo en un contenedor definido por el usuario, se incluirá una carpeta en el directorio actual que contenga los archivos necesarios para su despliegue y se indicará en esta directiva su nombre. Es excluyente con la funcionalidad `image`.
-      - `script`: en caso de querer que se ejecute un shell-script en el contenedor a desplegar cuando este se inicie, se debe indicar aquí su nombre tal y como esté almacenado en el directorio actual.
-      - `network`: si deseamos que se le asigne una dirección IP en un subrango de la red del laboratorio, se indicará en esta directiva. Es excluyente con la funcionalidad `ip`.
-      - `ip`: si deseamos que al nodo actual se le despliegue con una dirección IP concreta dentro del rango de la red del laboratorio, se indicará en esta directiva. Es excluyente con las funcionalidades `network` y `replicas`.
-      - `replicas`: en caso de desear desplegar varios contenedores con configuraciones similares, se indicará en esta directiva el número de instancias a desplegar. Es incompatible con la funcionalidad `ip` sólo en caso de que su valor sea superior a "1". Cada réplica tendrá una variable de entorno `$REPLICA_ID` con un identificador que ayude a diferenciarla de las demás (un valor entre 0 y el número máximo de réplicas - sin incluir este último).
-      - `needs`: lista de dependencias para el despliegue del contenedor. Sirve para generar un orden de despliegue personalizado.
-## Ejecución
-Se puede indicar el modo de ejecución deseado para `dockerlab.py` a modo de banderas en sus argumentos:
-- `-b` o `--build`: Indica que se desea generar el archivo `docker-compose.yml`. Si sólo se selecciona esta opción, no se crearán los contenedores pertinentes.
-- `-e` o `--execute`: Indica que se desean crear y levantar los contenedores definidos en `docker-compose.yml`.
-- `-m` o `--monitor`: Monitoriza el tráfico de paquetes en la red simulada. Debe usarse junto con `-e`.
-- `-u` o `--usage`: Monitoriza el uso de recursos dentro de los contenedores de la simulación. Debe usarse junto con `-e`.
+# Tool for Deploying Virtual Labs Using Docker
 
-Por defecto, en caso de no proporcionar parámetros, se ejecutará con las banderas `-be`.
-Una vez el archivo `docker-compose.yml` haya sido creado, se proporcionará la opción de correr la simulación pulsando la tecla `r` y de pararla pulsando la tecla `s`. Para salir de la aplicación, se debe pulsar la tecla `esc`.
-## Dependencias 
-Para la ejecución del presente software se deben cumplir los siguientes requisitos:
-- Docker 23.0.3 o posteriores[^1]
-- Docker-compose 1.29.2 o posteriores[^1]
-- Python 3.10.6 o posteriores[^1]
-- Librerías contenidas en el archivo `requirements.txt`.
+This repository contains a tool to automate the deployment of virtual labs using Docker.  
+It was developed as a Bachelor's Thesis (TFG) during the 2022/23 academic year for the Bachelor's Degree in Telecommunication Technologies Engineering at the University of Seville.
 
-Para la instalación de dependencias se muestra a continuación el proceso a seguir en un equipo con una distribución de Linux basada en Debian (se han de realizar las siguientes acciones con permisos de superusuario):
-1. Se actualiza la lista de repositorios y los paquetes actualmente instalados:
+## How It Works
+
+Once the repository is downloaded, a YAML-formatted script named `config.yml` must be placed in the same folder as the `dockerlab.py` file. This script should contain the specifications of the virtual lab to be deployed. Currently, the file must follow the structure below:
+
+- `<lab_name>`: name of the lab (e.g., `lab`)
+  - `network`: IPv4 address indicating the lab's subnet.
+  - `nodes`: list of nodes that make up the lab.
+    - `<node_name>`: name of the specific node.
+      - `image`: Docker image to be used for the node. Cannot be used together with `build`.
+      - `build`: if the node is based on a custom container, include a folder with the necessary deployment files and indicate its name here. Cannot be used together with `image`.
+      - `script`: name of a shell script to be executed inside the container when it starts. It must be located in the current directory.
+      - `network`: if you want to assign an IP within a subnet of the lab network, specify it here. Cannot be used with `ip`.
+      - `ip`: to assign a specific IP within the lab network range, specify it here. Cannot be used with `network` or `replicas`.
+      - `replicas`: to deploy multiple containers with similar configurations, specify the number of instances here. It is only incompatible with `ip` if the value is greater than 1. Each replica will have an environment variable `$REPLICA_ID` with an identifier to distinguish it from the others (a value between 0 and the maximum number of replicas - excluding the last one).
+      - `needs`: list of dependencies required before deploying the container. This is used to control the deployment order.
+
+## Execution
+
+You can specify the desired execution mode for `dockerlab.py` using flags:
+
+- `-b` or `--build`: Generates the `docker-compose.yml` file. If this option is selected alone, the containers will not be created.
+- `-e` or `--execute`: Creates and launches the containers defined in `docker-compose.yml`.
+- `-m` or `--monitor`: Monitors packet traffic in the simulated network. Must be used together with `-e`.
+- `-u` or `--usage`: Monitors resource usage within the simulation containers. Must be used together with `-e`.
+
+By default, if no flags are provided, it will run with the `-be` options.
+
+Once the `docker-compose.yml` file has been created, you will be given the option to start the simulation by pressing `r`, stop it with `s`, and exit the application by pressing `esc`.
+
+## Dependencies
+
+The following requirements must be met to run this software:
+
+- Docker 23.0.3 or later[^1]  
+- Docker Compose 1.29.2 or later[^1]  
+- Python 3.10.6 or later[^1]  
+- Python libraries listed in the `requirements.txt` file
+
+To install dependencies on a Debian-based Linux distribution (as superuser), follow these steps:
+
+1. Update repositories and installed packages:
 ```bash
 apt update
 apt upgrade
 ```
-2. Haciendo uso del gestor de paquetes, se instalan las últimas versiones del software necesario:
+2. Install required software using the package manager:
 ```bash
 apt install docker
 apt install docker-compose
 apt install python3
 apt install python3-tk
 ```
-3. Para instalar las librerías necesarias, situarse en la carpeta contenedora del archivo `requirements.txt` y ejecutar la orden:
+3. To install the required Python libraries, navigate to the folder containing `requirements.txt` and run:
 ```bash
 python3 -m pip install -r requirements.txt
 ```
 
-## Errores conocidos
-- A la hora de ejecutar el programa por primera vez, es posible que aparezca el error `Got permission denied while trying to connect to the Docker daemon socket`, esto es debido a que el usuario desde el que se está ejecutando la aplicación no pertenece al grupo `docker`. Para solucionarlo, primero habrá que crear dicho grupo con `sudo groupadd docker`. A continuación, habrá que añadir al usuario a dicho grupo mediante la orden `sudo usermod -aG docker ${USER}`. Posteriormente, habrá que volver a iniciar la sesión de dicho usuario mediante `su - ${USER}`. Para comprobar que todo funcione correctamente, se pueded ejecutar el comando `docker run hello-world`.
-- Si a la hora de parar la ejecución se recibe un error `Error while Stopping` y los contenedores continúan con su ejecución, puede deberse al uso de AppArmor (módulo de seguridad del kernel Linux que permite al administrador del sistema restringir las capacidades de un programa). Para solucionar el problema, abrir una nueva terminal y escribir `sudo aa-remove-unknown`[^2]. Una vez ejecutado, escribir `docker compose down`, el problema debería solucionarse de esta forma.
+## Known Issues
 
-[^1]: Se ha probado el correcto funcionamiento del presente repositorio con las versiones indicadas de las dependencias, por lo que, aunque puede que funcione correctamente con algunas versiones anteriores, sólo se puede garantizar que no se van a encontrar problemas inesperados con las versiones aquí indicadas.
-[^2]: Pueden encontrarse múltiples procesos "snap.docker.dockerd" en el output de `aa-status`, y la forma de eliminarlos y poder parar los contenedores de docker es mediante la orden `aa-remove-unknown`. Información consultada en el siguiente enlace: [https://javahowtos.com/guides/124-docker/414-solved-cannot-kill-docker-container-permission-denied.html](https://javahowtos.com/guides/124-docker/414-solved-cannot-kill-docker-container-permission-denied.html)
+- When running the program for the first time, you may encounter the error `Got permission denied while trying to connect to the Docker daemon socket`. This means the user running the application is not part of the `docker` group. To fix this, create the group with `sudo groupadd docker`, then add your user with `sudo usermod -aG docker ${USER}`. After that, re-login with `su - ${USER}`. You can test if it works by running `docker run hello-world`.
+- If you get an `Error while Stopping` message and containers do not stop properly, it may be due to AppArmor (a Linux kernel security module that restricts program capabilities). To fix it, open a new terminal and run `sudo aa-remove-unknown`[^2]. Then run `docker compose down`. This should resolve the issue.
+
+[^1]: The repository has been tested with the specified versions. While older versions may work, only the listed versions are guaranteed to avoid unexpected issues.  
+[^2]: You may find several "snap.docker.dockerd" processes in the output of `aa-status`. The recommended way to stop Docker containers in this case is to run `aa-remove-unknown`. More info: [https://javahowtos.com/guides/124-docker/414-solved-cannot-kill-docker-container-permission-denied.html](https://javahowtos.com/guides/124-docker/414-solved-cannot-kill-docker-container-permission-denied.html)
